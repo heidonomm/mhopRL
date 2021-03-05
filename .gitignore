@@ -1,0 +1,13 @@
+__pycache__
+.vscode
+
+QASC_Corpus
+QASC_Dataset
+data
+logs
+empty_facts.jsonl
+erroneous_facts.txt
+missing_words.txt
+
+proov.py
+script.py
