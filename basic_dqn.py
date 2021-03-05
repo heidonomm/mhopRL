@@ -86,15 +86,8 @@ class DQN(nn.Module):
 
 
 class DQNTrainer(object):
-    # @profile()
     def __init__(self):
         self.num_epochs = 32
-        self.update_freq = 4
-        self.filename = 'dqn_' + '_'.join(['Testing'])
-        logging.basicConfig(filename='logs/' + self.filename +
-                            '.log', level=logging.WARN, filemode='w')
-
-        self.replay_buffer = ReplayBuffer(100)
 
         self.vocab = self.load_vocab()
         self.word2index = self.load_word2index()
@@ -104,23 +97,10 @@ class DQNTrainer(object):
 
         self.model = DQN(len(self.vocab), len(
             self.all_actions))
-        # model = nn.DataParallel(model)
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.1)
 
-        self.num_frames = 100
-        self.batch_size = 1
-        self.gamma = 0.2
-
-        self.losses = []
-        self.all_rewards = []
-        self.completion_steps = []
-        self.lowest_loss = 100
-
-        self.rho = 0.25
-
-        self.nr_of_frames = len(self.training_dataset) * self.num_epochs
-        self.e_scheduler = LinearSchedule(self.nr_of_frames, 0.01)
+        self.erroneous_facts = set()
 
         self.queue_size = 50
         self.loss_queue = []
@@ -133,12 +113,17 @@ class DQNTrainer(object):
         else:
             self.loss_queue.append(loss_value)
 
-    def add_accuraccy(self, acc_value):
+    def add_accuracy(self, acc_value):
         if len(self.accuracy_queue) > self.queue_size:
             self.accuracy_queue.pop(0)
             self.accuracy_queue.append(acc_value)
         else:
             self.accuracy_queue.append(acc_value)
+
+    def get_avg_loss_acc(self):
+        avg_loss = sum(self.loss_queue) / len(self.loss_queue)
+        avg_acc = sum(self.accuracy_queue) / len(self.accuracy_queue)
+        return avg_loss, avg_acc
 
     def load_action2index(self):
         action_dict = dict()
@@ -159,7 +144,7 @@ class DQNTrainer(object):
         return open("all_predicates.txt").read().splitlines()
 
     def load_training_dataset(self):
-        return open("toy_data/training_data.txt").readlines()
+        return open("toy_data/constrained_training_data.txt").readlines()
 
     def plot(self, frame_idx, rewards, losses, completion_steps):
         fig = plt.figure(figsize=(20, 5))
@@ -179,59 +164,6 @@ class DQNTrainer(object):
         # plt.show()
         fig.savefig('plots/' + self.filename + '_' + str(frame_idx) + '.png')
 
-    def compute_td_loss(self):
-        # var = self.replay_buffer.sample(self.batch_size, self.rho)
-        state, action, reward, next_state, done, data_index = self.replay_buffer.sample(
-            self.batch_size, self.rho)
-        statept = torch.LongTensor(state)
-        state_embeds = self.model.get_embeds(statept)
-        next_statept = torch.LongTensor(next_state)
-        next_state_embeds = self.model.get_embeds(next_statept)
-        # actionpt = torch.FloatTensor(action)
-        reward = torch.FloatTensor(reward)
-
-        # statept.requires_grad = True
-        # next_statept.requires_grad = True
-        done = torch.FloatTensor(1 * done)
-        x = self.model.get_encoding(state_embeds)
-        q_values = self.model.predicate_pointer(x)
-        # action_distribution = self.model.softmax(q_values)
-        # q_value = torch.argmax(action, dim=1)
-
-        # with torch.no_grad():
-        #     next_x = self.model.get_encoding(state_embeds)
-        #     next_q_values = self.model.predicate_pointer(x)
-        #     next_action = self.model.softmax(q_values)
-        #     next_q_value = torch.argmax(next_action, dim=1)
-        # q_value = self.model.act(statept, 0)
-        # next_q_value = self.model.act(next_state, 0)
-        correct_indices = self.get_correct_one_hot_encoded_action_indices(
-            json.loads(self.training_dataset[data_index[0]]))
-        if correct_indices is None:
-            return 0
-        if len(correct_indices) == 0:
-            return 0
-        loss = self.model.loss_f(
-            q_values, correct_indices)
-        # loss = NegativeLogLoss(action_distribution, correct_indices)
-        # loss = torch.mean(loss)
-
-        # expected_q_value = reward + \
-        #     (self.gamma * next_q_value).type(torch.FloatTensor) * (1 - done)
-        # loss = (q_value - (expected_q_value.data)).pow(2).mean()
-        # # clipped_loss = loss.clamp(-1.0, 1.0)
-        # loss = loss.clamp(-1.0, 1.0)
-        # right_gradient = clipped_loss * -1.0
-        # print(loss)
-
-        self.optimizer.zero_grad()
-        # loss.backward(right_gradient.data.unsqueeze(1)[:, 0])
-        loss.backward()
-
-        self.optimizer.step()
-
-        return loss
-
     def preprocess(self, text):
         lemma = WordNetLemmatizer()
         tokens = word_tokenize(text)
@@ -241,40 +173,10 @@ class DQNTrainer(object):
         tokens = [lemma.lemmatize(word.lower(), pos="n") for word in tokens]
         return " ".join(tokens)
 
-    def state_rep_generator(self, q_obj):
-        state = ""
-        elements = list()
-        elements.append(preprocess(q_obj["stem"]))
-        for choice in q_obj['choices']:
-            elements.append((preprocess(choice['text'])))
-        return "|".join(elements)
-
-    # def predict_get_loss_accuraccy(self, )
-
-    def add_state_rep(self, state_rep, fact):
-        norm_fact = self.preprocess(fact)
-        state_rep += f"<|>{norm_fact}"
-        return state_rep
-
-    def calculate_reward(self, row, prediction):
-        y_true = list()
-        if 'fact1_pred' in row:
-            y_true += row['fact1_pred']
-        if 'fact2_pred' in row:
-            y_true += row['fact2_pred']
-        if len(y_true) == 0:
-            with open("empty_facts.jsonl", 'a+') as empty_facts:
-                empty_facts.write(f"{json.dumps(row)}\n")
-            return 0
-        if prediction in y_true:
-            return 1
-        else:
-            return -1
-
-    def model_make_step(self, state_rep, epsilon, data_index):
+    def model_make_step(self, state_rep, data_index, correct_indices):
         statept = torch.LongTensor(state_rep)
         state_embeds = self.model.get_embeds(statept)
-        x = self.model.get_encoding(state_embeds)
+        x = self.model.get_encoding(state_embeds.unsqueeze(0))
         q_values = self.model.predicate_pointer(x)
 
         one_hot_y_true = self.get_correct_one_hot_encoded_action_indices(
@@ -285,17 +187,20 @@ class DQNTrainer(object):
         if len(one_hot_y_true) == 0:
             return 0
 
-        loss = self.model.loss_f(q_values)
+        loss = self.model.loss_f(q_values, one_hot_y_true)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
 
-        chosen_index = torch.argmax(self.softmax(q_values), dim=1)
+        chosen_index = torch.argmax(self.model.softmax(q_values), dim=1)
 
-        if chosen_index in correct_indices:
-            reward = 1
-        else:
-            reward = 0
+        reward = 0
+        for i, fact_idxs in enumerate(correct_indices):
+            if str(chosen_index.item()) in fact_idxs:
+                reward = 1
+                correct_indices.pop(i)
+
+        return chosen_index, (loss, reward), correct_indices
 
     def train_QA(self):
         total_frames = 0
@@ -307,190 +212,49 @@ class DQNTrainer(object):
                 row = json.loads(self.training_dataset[data_index])
                 question = row['question']
                 choices = row['choices']
-                # print(question)
-
-                # state_rep = self.state_rep_generator(row['formatted_question'])
-                episode_reward = 0
+                correct_indices = self.get_action_indices(row)
 
                 pred_indices = list()
                 pred_strings = list()
-                rewards = list()
                 state_reps = list()
 
+                """
+                    Step 1
+                """
                 state_rep1 = words_to_ids(self.preprocess(
                     row['formatted_question']), self.word2index)
                 state_reps.append(state_rep1)
-                # epsilon = self.e_scheduler.value(data_index)
-                epsilon = 0
-                pred_indices.append(self.model.act(
-                    state_reps[-1], epsilon))
+
+                chosen_index1, (loss1, accuracy1), correct_indices = self.model_make_step(
+                    state_rep1, data_index, correct_indices)
+
+                pred_indices.append(chosen_index1)
                 pred_strings.append(self.all_actions[pred_indices[-1]])
-                rewards.append(self.calculate_reward(row, pred_strings[-1]))
-                # state_rep2 = torch.cat((state_rep1,
-                #                         words_to_ids(f" {pred_strings[-1]}", self.word2index)))
+                self.add_loss(loss1)
+                self.add_accuracy(accuracy1)
+
+                """
+                    Step 2
+                """
                 state_rep2 = state_rep1 + \
                     words_to_ids(f" {pred_strings[-1]}", self.word2index)
                 state_reps.append(state_rep2)
 
-                print(f"question:{question}, predicate:{pred_strings[-1]}\n")
-                # exper = Experience(
-                #     state=state_reps[-2], action=pred_indices[-1], reward=rewards[-1], next_state=state_reps[-1], done=False)
-                # self.replay_buffer.push(exper)
-                self.replay_buffer.push(
-                    state_reps[-2], pred_indices[-1], rewards[-1], state_reps[-1], False, data_index)
+                chosen_index2, (loss2, accuracy2), correct_indices = self.model_make_step(
+                    state_rep2, data_index, correct_indices)
 
-                logging.info('-------')
-                logging.info(question)
-                logging.info(pred_strings[-1])
-
-                pred_indices.append(self.model.act(
-                    state_reps[-1], epsilon))
+                pred_indices.append(chosen_index2)
                 pred_strings.append(self.all_actions[int(pred_indices[-1])])
-                # state_rep3 = torch.cat((state_rep2,
-                #                         words_to_ids(f" {pred_strings[-1]}", self.word2index)))
-                state_rep3 = state_rep2 + \
-                    words_to_ids(f" {pred_strings[-1]}", self.word2index)
-                state_reps.append(state_rep3)
-                rewards.append(self.calculate_reward(row, pred_strings[-1]))
+                self.add_loss(loss2)
+                self.add_accuracy(accuracy2)
 
-                logging.info('-------')
-                logging.info(question)
-                logging.info(pred_strings[-1])
+                avg_loss, avg_acc = self.get_avg_loss_acc()
 
-                answer_index = self.model.answer_question(
-                    state_reps[-1]).item()
-                pred_indices.append(answer_index)
-                pred_strings.append(self.get_answer_letter(pred_indices[-1]))
-                # state_rep4 = torch.cat((state_rep3, words_to_ids(
-                #     f" {pred_strings[-1]}", self.word2index)))
-                state_rep4 = state_rep3 + words_to_ids(
-                    f" {pred_strings[-1]}", self.word2index)
-                state_reps.append(state_rep4)
-                # exper = Experience(
-                #     state=state_reps[-2], action=pred_indices[-1], reward=rewards[-1], next_state=state_reps[-1], done=True)
-                # self.replay_buffer.push(exper)
-                self.replay_buffer.push(
-                    state_reps[-2], pred_indices[-1], rewards[-1], state_reps[-1], True, data_index)
-
-                if len(self.replay_buffer) > self.batch_size:
-                    loss = self.compute_td_loss()
-                    if loss < self.lowest_loss:
-                        self.lowest_loss = loss
-                        self.losses.append(loss.item())
-                        print(f"current lowest loss is: {self.lowest_loss}")
-                    if loss != 0:
-                        self.losses.append(loss.item())
-            # @profile()
-        print(f"loss at the end of training is: {self.lowest}")
-        print(self.losses)
-
-    def train(self):
-        total_frames = 0
-        for e_idx in range(1, self.num_epochs + 1):
-            state = self.env.reset()
-            state_text = state.description
-            state_rep = self.state_rep_generator(state_text)
-            episode_reward = 0
-            completion_steps = 0
-            episode_done = False
-
-            for frame_idx in range(1, self.num_frames + 1):
-                epsilon = self.e_scheduler.value(total_frames)
-                action = self.model.act(state_rep, epsilon)
-
-                action_text = self.all_actions[int(action)]
-                logging.info('-------')
-                logging.info(state_text)
-                logging.info(action_text)
-
-                next_state, reward, done = self.env.step(action_text)
-                reward += next_state.intermediate_reward
-                reward = max(-1.0, min(reward, 1.0))
-
-                # if reward != 0:
-                logging.warning('--------')
-                logging.warning(frame_idx)
-                logging.warning(state_text)
-                # print(next_state_text)
-                logging.warning(action_text)
-                logging.warning(reward)
-
-                # print(reward)
-
-                next_state_text = next_state.description
-                next_state_rep = self.state_rep_generator(next_state_text)
-
-                self.replay_buffer.push(
-                    state_rep, action, reward, next_state_rep, done)
-
-                state = next_state
-                state_text = next_state_text
-                state_rep = next_state_rep
-
-                episode_reward += reward
-                completion_steps += 1
-                total_frames += 1
-
-                if len(self.replay_buffer) > self.batch_size:
-                    if frame_idx % self.update_freq == 0:
-                        loss = self.compute_td_loss()
-                        self.losses.append(loss.data[0])
-
-                if done:
-                    logging.warning("Done")
-                    state = self.env.reset()
-                    state_text = state.description
-                    state_rep = self.state_rep_generator(state_text)
-                    self.all_rewards.append(episode_reward)
-                    self.completion_steps.append(completion_steps)
-                    episode_reward = 0
-                    completion_steps = 0
-                    episode_done = True
-                elif frame_idx == self.num_frames:
-
-                    self.all_rewards.append(episode_reward)
-                    self.completion_steps.append(completion_steps)
-                    episode_reward = 0
-                    completion_steps = 0
-
-                if episode_done:
-                    break
-
-            if e_idx % (int(self.num_episodes / 10)) == 0:
-                logging.info("Episode:" + str(e_idx))
-                self.plot(e_idx, self.all_rewards,
-                          self.losses, self.completion_steps)
-                self.plot(e_idx, self.all_rewards,
-                          self.losses, self.completion_steps)
-                parameters = {
-                    'model': self.model,
-                    'replay_buffer': self.replay_buffer,
-                    'action_dict': self.all_actions,
-                    'vocab': self.vocab,
-                    'params': self.params,
-                    'stats': {
-                        'losses': self.losses,
-                        'rewards': self.all_rewards,
-                        'completion_steps': self.completion_steps
-                    }
-                }
-                torch.save(parameters, 'models/' +
-                           self.filename + '_' + str(e_idx) + '.pt')
-
-        parameters = {
-            'model': self.model,
-            'replay_buffer': self.replay_buffer,
-            'action_dict': self.all_actions,
-            'vocab': self.vocab,
-            'params': self.params,
-            'stats': {
-                'losses': self.losses,
-                'rewards': self.all_rewards,
-                'completion_steps': self.completion_steps
-            }
-        }
-        torch.save(parameters, 'models/' + self.filename + '_final.pt')
-        self.env.close()
+                if avg_acc > 0 or accuracy2 == 1 or accuracy1 == 1:
+                    with open("it_works.txt", "w") as works:
+                        works.write("it did something")
+                print(
+                    f"{epoch}|{question}  ,  chosen preds:{pred_strings[-2]}, {pred_strings[-1]}, avg loss: {avg_loss}, avg_acc: {avg_acc}")
 
     def get_answer_letter(self, answer_index):
         switcher = {
@@ -527,8 +291,9 @@ class DQNTrainer(object):
         @return: a 2d array, first index specifies fact, second specifies the associated predicates
         """
         if len(row['fact1_pred']) == 0 and len(row['fact2_pred']) == 0:
+            self.erroneous_facts.add(json.dumps(row))
             return 0
         actions = []
-        actions.append[row['fact1_pred']]
-        actions.append[row['fact2_pred']]
+        actions += row['fact1_pred']
+        actions += row['fact2_pred']
         return actions
