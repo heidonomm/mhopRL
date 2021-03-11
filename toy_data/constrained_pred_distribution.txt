@@ -1,0 +1,579 @@
+be in: 57
+measure: 52
+be use for: 44
+have: 26
+decrease: 25
+use by: 21
+reduce: 19
+cause: 18
+become: 18
+can: 17
+be with: 17
+use: 16
+make: 15
+change: 15
+give: 15
+be period of: 15
+block: 15
+occur in: 13
+require: 12
+be call: 12
+occur mainly in: 12
+be deposit in: 12
+volcanic ash in: 12
+ash in: 12
+be deposit during: 11
+give driver feedback on: 11
+be measure in: 11
+regulate by: 10
+navigate: 10
+ancestor of be: 10
+think: 10
+form by: 9
+contain: 9
+be symbiotic relationship: 9
+be symbiotic: 9
+be relationship: 9
+prevent: 9
+may: 9
+be make of: 8
+be measure of: 8
+be example of: 8
+be during: 8
+be faster during: 8
+warn wolf by: 8
+warn: 8
+smooth: 8
+be fat: 8
+take: 8
+be stage of: 8
+increase: 8
+capture: 8
+capture food by: 8
+convert: 8
+convert nectar into: 8
+change drastically: 8
+loss of: 8
+have create: 8
+display: 8
+prevent injury by: 8
+provide: 7
+reduce amount in: 7
+carry until: 7
+be last stage of: 7
+be stage before: 7
+be last stage before: 7
+reach: 7
+be period: 7
+generally describe in: 6
+describe in: 6
+decrease visibility: 6
+mean: 6
+begin with: 6
+move over: 6
+take image from: 6
+specialize: 6
+be also make of: 6
+spread out into: 5
+be cause of: 5
+be small: 5
+be molecule: 5
+be small molecule: 5
+be important for: 5
+be use in: 5
+live in: 5
+decrease in: 5
+be note for: 5
+be process: 5
+be easier: 5
+moisten by: 5
+be invertebrate such: 5
+be study of: 4
+be major cause of: 4
+cause by: 4
+produce by: 4
+include: 4
+be far fewer in: 4
+be fewer in: 4
+bile: 4
+refer to: 3
+make up: 3
+be major: 3
+be source of: 3
+be relate to: 3
+develop during: 3
+be component of: 3
+solid at: 3
+call: 3
+travel through: 3
+be history of: 3
+be evolutionary history of: 3
+speedometer: 3
+odometer: 3
+fish: 3
+jawless fish: 3
+today: 3
+include lamprey: 3
+be result of: 3
+be destruction of: 3
+get: 3
+be animal with: 3
+find in: 3
+start: 3
+be very convenient: 3
+be convenient for: 3
+be very convenient during: 3
+be very convenient for: 3
+be convenient: 3
+be convenient during: 3
+be procedure to: 3
+be essential to: 2
+have use for: 2
+have use north star for: 2
+have use: 2
+form on: 2
+posse: 2
+provide care compare: 2
+be essential for: 2
+keep: 2
+be close relative of: 2
+be relative of: 2
+produce: 2
+experience: 2
+be synonymous with: 2
+learn during: 2
+end with: 2
+be measurement of: 2
+find: 2
+point to: 2
+be compose of: 2
+know: 2
+form in: 2
+be for: 2
+synthesize by: 2
+absorb: 2
+absorb fat from: 2
+normally pour: 2
+pour: 2
+messenger in: 2
+be chemical messenger in: 2
+involve: 2
+be source for: 2
+release inside: 2
+be release during: 2
+be at: 2
+travel at: 2
+domestication of be: 2
+be time of: 2
+show: 2
+navigate on: 2
+know a: 2
+construct: 2
+be group of: 2
+contain xanthophyll pigment in: 2
+give color to: 2
+contain due: 2
+red in: 2
+fee: 2
+fee fish on: 2
+break: 2
+break chemical into: 2
+be measure by: 2
+on: 2
+be stiff hair on: 2
+hair on: 2
+see: 2
+take from: 2
+be natural component of: 2
+be natural: 2
+begin in: 2
+enter: 2
+be force of: 2
+also call: 2
+be scavenger such: 2
+consist of: 2
+pick up: 2
+be measure with: 2
+drive by: 1
+vary accord: 1
+make from: 1
+be from: 1
+refer over: 1
+be moisture in: 1
+move: 1
+transportation: 1
+move people from: 1
+be primary mode of: 1
+be mode of: 1
+be tiny: 1
+be simply piece of: 1
+be simply very tiny piece of: 1
+be tiny piece of: 1
+be simply tiny piece of: 1
+be very tiny piece of: 1
+be piece of: 1
+line: 1
+be essential on: 1
+be symbol of: 1
+be key: 1
+be key element of: 1
+be element of: 1
+study: 1
+also study: 1
+be good reptile for: 1
+be reptile for: 1
+abandon: 1
+reptile in: 1
+draw: 1
+draw water into: 1
+draw water from: 1
+hold nutrient in: 1
+hold: 1
+present: 1
+fume during: 1
+contaminate: 1
+turn into: 1
+be gas in: 1
+spread throughout: 1
+from: 1
+drive to: 1
+have take: 1
+take visibility to: 1
+be major problem under: 1
+be problem under: 1
+lack of be: 1
+be polymer of: 1
+be polymer like: 1
+be acid like: 1
+be ribonucleic acid like: 1
+keep dna for: 1
+keep dna inside: 1
+often use: 1
+make into: 1
+discover by: 1
+destroy bacteria in: 1
+destroy: 1
+develop by: 1
+kill of: 1
+kill by: 1
+be mild: 1
+heat include: 1
+relate to: 1
+end around: 1
+die in: 1
+frequently die in: 1
+will check for: 1
+be measure on: 1
+be measure to: 1
+develop in: 1
+determine: 1
+magnitude of be: 1
+amount of: 1
+be consider: 1
+be vehicle: 1
+cause parasite: 1
+illness cause parasite: 1
+parasite: 1
+spiralis: 1
+transmit by: 1
+s: 1
+magnetize: 1
+locate: 1
+be group into: 1
+oversee by: 1
+play: 1
+play role in: 1
+determine by: 1
+go beyond: 1
+still know: 1
+do research: 1
+be main component of: 1
+follow development through: 1
+follow development from: 1
+follow: 1
+define a: 1
+end happily with: 1
+last: 1
+most of be: 1
+howl: 1
+somewhere howl: 1
+communicate with: 1
+reverberate with: 1
+be member of: 1
+be largest member of: 1
+be distinguish by: 1
+be social like: 1
+be abrasive like: 1
+be lack of: 1
+create: 1
+be of: 1
+tiny log: 1
+easily make: 1
+wooden log: 1
+make log cabin from: 1
+easily make log cabin from: 1
+child: 1
+log: 1
+tiny wooden log: 1
+traditionally be use in: 1
+generate by: 1
+operate on: 1
+hit by: 1
+do in: 1
+keep in: 1
+seem: 1
+be solid for: 1
+release bile through: 1
+release: 1
+release bile after: 1
+make by: 1
+be store in: 1
+bile produce: 1
+help: 1
+digest: 1
+act a: 1
+manage: 1
+control: 1
+regulate: 1
+maintain: 1
+loop: 1
+inhibit: 1
+take place in: 1
+be best source of: 1
+be best source for: 1
+be nutrient like: 1
+contain in: 1
+carry: 1
+travel: 1
+travel into: 1
+make in: 1
+in: 1
+be evidence of: 1
+release through: 1
+release into: 1
+be bad for: 1
+clean out: 1
+lead to: 1
+be very common during: 1
+be common during: 1
+overall be cause of: 1
+overall be major cause of: 1
+destroy by: 1
+huge cloud of: 1
+cloud of: 1
+ignite: 1
+be act of: 1
+be effect on: 1
+slow: 1
+slow speed on: 1
+also slow: 1
+also slow speed on: 1
+be association between: 1
+be out: 1
+add to: 1
+be very complex for: 1
+be complex for: 1
+be pivotal stage of: 1
+be pivotal: 1
+be fascinate and crazy time of: 1
+be fascinate: 1
+be fascinate time of: 1
+to: 1
+now show: 1
+reduce speed at: 1
+be magnitude of: 1
+check by: 1
+rise by: 1
+be factor in: 1
+survive in: 1
+bear live in: 1
+bear in: 1
+be exceedingly cold with: 1
+cold with: 1
+hit: 1
+lose: 1
+large body of: 1
+body of: 1
+grow: 1
+divide into: 1
+form over: 1
+travel on: 1
+navigate with: 1
+navigate solely on: 1
+navigate solely with: 1
+be difficult during: 1
+be especially difficult during: 1
+use grid north north a: 1
+safely navigate on: 1
+use gyrocompass a: 1
+depend on: 1
+also know a: 1
+increase with: 1
+increase sharply with: 1
+range from: 1
+range: 1
+be necessary: 1
+be necessary ingredient for: 1
+be ingredient for: 1
+occur a: 1
+inject: 1
+inject venom into: 1
+eat: 1
+usually eat: 1
+spin: 1
+catch: 1
+construct web in: 1
+be available for: 1
+be largest group of: 1
+be smallest of: 1
+classify for: 1
+classify into: 1
+ciliated: 1
+be social: 1
+live together in: 1
+be very social: 1
+fee on: 1
+change nectar in: 1
+secrete: 1
+move from: 1
+gather: 1
+move to: 1
+form through: 1
+be present in: 1
+often call: 1
+be simply period of: 1
+watch: 1
+probably see: 1
+make unsightly: 1
+be salt of: 1
+be specialization of: 1
+specialize during: 1
+be basic unit of: 1
+be unit of: 1
+differentiate to: 1
+animal with: 1
+be present: 1
+be isosmotic with: 1
+be perceive in: 1
+nevertheless be perceive in: 1
+sound: 1
+be change into: 1
+image: 1
+employ image: 1
+employ image from: 1
+employ: 1
+rely from: 1
+rely on: 1
+save: 1
+lead cause: 1
+be lead: 1
+be cause: 1
+helmet: 1
+provide protection in: 1
+be like: 1
+be community of: 1
+be community in: 1
+burn uncontrollably: 1
+burn plant across: 1
+burn uncontrollably plant across: 1
+burn: 1
+wildfire: 1
+mexico: 1
+scorch: 1
+look around: 1
+see with: 1
+come through: 1
+distance between: 1
+be on: 1
+unit: 1
+be place at: 1
+threaten by: 1
+sign of be: 1
+be result from: 1
+be gradual movement on: 1
+be movement on: 1
+be gradual movement of: 1
+be movement of: 1
+find on: 1
+find along: 1
+bear with: 1
+be birth to: 1
+fuel: 1
+write up to: 1
+locate throughout: 1
+besides contain: 1
+mix with: 1
+mix in: 1
+take care of: 1
+often care among: 1
+care for: 1
+care among: 1
+often care for: 1
+be ambiguous between: 1
+be rarest of: 1
+give birth to: 1
+weight in: 1
+express in: 1
+be force on: 1
+enter puberty at: 1
+be sign of: 1
+usually cease with: 1
+cease with: 1
+be express a: 1
+sometimes express a: 1
+be use: 1
+be part per: 1
+line up with: 1
+be foundation of: 1
+give on: 1
+do only by: 1
+do by: 1
+be force against: 1
+animal without: 1
+cnidarian: 1
+upgrade to: 1
+exceed: 1
+gauge with: 1
+be diverse and abundant group of: 1
+be group on: 1
+be most diverse group on: 1
+be most diverse and abundant group on: 1
+be diverse group on: 1
+be most diverse and abundant group of: 1
+be diverse and abundant group on: 1
+be most diverse group of: 1
+be diverse group of: 1
+be world of: 1
+live at: 1
+example of: 1
+example: 1
+product of: 1
+span: 1
+eruptive product of: 1
+of: 1
+spew into: 1
+cool: 1
+be air around: 1
+be state for: 1
+be common: 1
+be infer: 1
+be common state for: 1
+be particular problem for: 1
+be particular: 1
+be problem for: 1
+be associate with: 1
+veil from: 1
+veil of: 1
+be characteristic of: 1
+flagellum of: 1
+pas over: 1
+look: 1
+be sick: 1
+order by: 1
+be most inquisitive of: 1
+be inquisitive of: 1
+belong to: 1
+calm: 1
+become with: 1
+be available with: 1
+be essence of: 1

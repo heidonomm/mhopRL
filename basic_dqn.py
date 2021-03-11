@@ -16,8 +16,6 @@ from collections import deque
 from nltk.tokenize import word_tokenize
 from nltk import WordNetLemmatizer
 
-# from matplotlib import use
-# use('Agg')
 import matplotlib.pyplot as plt
 
 import logging
@@ -26,7 +24,6 @@ from replay import *
 from schedule import *
 from utils import NegativeLogLoss, words_to_ids, to_one_hot
 
-# from memory_profiler import profile
 
 USE_CUDA = torch.cuda.is_available()
 
@@ -87,13 +84,14 @@ class DQN(nn.Module):
 
 class DQNTrainer(object):
     def __init__(self):
-        self.num_epochs = 32
+        self.num_epochs = 30
 
         self.vocab = self.load_vocab()
         self.word2index = self.load_word2index()
         self.all_actions = self.load_action_dictionary()
         self.training_dataset = self.load_training_dataset()
         self.pred2index = self.load_action2index()
+        self.experiment_name = f'Multiword Predicate, Samples:{len(self.training_dataset)}, Actions:{len(self.all_actions)}, Epochs: {self.num_epochs}'
 
         self.model = DQN(len(self.vocab), len(
             self.all_actions))
@@ -138,31 +136,13 @@ class DQNTrainer(object):
         return index_dict
 
     def load_vocab(self):
-        return open("word_vocab.txt").read().splitlines()
+        return open("toy_data/word_vocab.txt").read().splitlines()
 
     def load_action_dictionary(self):
-        return open("all_predicates.txt").read().splitlines()
+        return open("toy_data/constrained_predicates.txt").read().splitlines()
 
     def load_training_dataset(self):
         return open("toy_data/constrained_training_data.txt").readlines()
-
-    def plot(self, frame_idx, rewards, losses, completion_steps):
-        fig = plt.figure(figsize=(20, 5))
-        plt.subplot(131)
-        plt.title('frame %s. reward: %s' % (frame_idx, np.mean(rewards[-10:])))
-        plt.plot(rewards)
-        plt.subplot(132)
-        plt.title('frame %s. steps: %s' %
-                  (frame_idx, np.mean(completion_steps[-10:])))
-        plt.plot(completion_steps)
-        plt.subplot(133)
-        plt.title('loss-dqn')
-        plt.plot(losses)
-        # txt = "Gamma:" + str(self.gamma) + ", Num Frames:" + str(self.num_frames) + ", E Decay:" + str(epsilon_decay)
-        plt.figtext(0.5, 0.01, self.filename, wrap=True,
-                    horizontalalignment='center', fontsize=12)
-        # plt.show()
-        fig.savefig('plots/' + self.filename + '_' + str(frame_idx) + '.png')
 
     def preprocess(self, text):
         lemma = WordNetLemmatizer()
@@ -196,7 +176,7 @@ class DQNTrainer(object):
 
         reward = 0
         for i, fact_idxs in enumerate(correct_indices):
-            if str(chosen_index.item()) in fact_idxs:
+            if chosen_index.item() in fact_idxs:
                 reward = 1
                 correct_indices.pop(i)
 
@@ -204,57 +184,91 @@ class DQNTrainer(object):
 
     def train_QA(self):
         total_frames = 0
-        accuracy_collections = []
-        loss_arr = []
+        # accuracy_collection = []
+        # loss_collection = []
+        with open('toy_data/verb_only/accuracy.txt', 'w') as acc_file, open("toy_data/verb_only/loss.txt", "w") as loss_file:
+            print("emptied previous file")
         for epoch in range(1, self.num_epochs + 1):
+            epoch_accuracies = list()
+            epoch_losses = list()
             for data_index in range(len(self.training_dataset)):
-                self.model.zero_grad()
-                row = json.loads(self.training_dataset[data_index])
-                question = row['question']
-                choices = row['choices']
-                correct_indices = self.get_action_indices(row)
+                frame_accuracies = list()
+                frame_losses = list()
+                for frame_idx in range(5):
+                    row = json.loads(self.training_dataset[data_index])
+                    question = row['question']
+                    choices = row['choices']
+                    correct_indices = self.get_action_indices(row)
 
-                pred_indices = list()
-                pred_strings = list()
-                state_reps = list()
+                    pred_indices = list()
+                    pred_strings = list()
+                    state_reps = list()
 
-                """
-                    Step 1
-                """
-                state_rep1 = words_to_ids(self.preprocess(
-                    row['formatted_question']), self.word2index)
-                state_reps.append(state_rep1)
+                    """
+                        Step 1
+                    """
+                    state_rep1 = words_to_ids(self.preprocess(
+                        row['formatted_question']), self.word2index)
+                    state_reps.append(state_rep1)
 
-                chosen_index1, (loss1, accuracy1), correct_indices = self.model_make_step(
-                    state_rep1, data_index, correct_indices)
+                    chosen_index1, (loss1, accuracy1), correct_indices = self.model_make_step(
+                        state_rep1, data_index, correct_indices)
 
-                pred_indices.append(chosen_index1)
-                pred_strings.append(self.all_actions[pred_indices[-1]])
-                self.add_loss(loss1)
-                self.add_accuracy(accuracy1)
+                    pred_indices.append(chosen_index1)
+                    pred_strings.append(self.all_actions[pred_indices[-1]])
 
-                """
-                    Step 2
-                """
-                state_rep2 = state_rep1 + \
-                    words_to_ids(f" {pred_strings[-1]}", self.word2index)
-                state_reps.append(state_rep2)
+                    # self.add_loss(loss1)
+                    # self.add_accuracy(accuracy1)
+                    frame_accuracies.append(accuracy1)
+                    frame_losses.append(loss1)
+                    """
+                        Step 2
+                    """
+                    state_rep2 = state_rep1 + \
+                        words_to_ids(f" {pred_strings[-1]}", self.word2index)
+                    state_reps.append(state_rep2)
 
-                chosen_index2, (loss2, accuracy2), correct_indices = self.model_make_step(
-                    state_rep2, data_index, correct_indices)
+                    chosen_index2, (loss2, accuracy2), correct_indices = self.model_make_step(
+                        state_rep2, data_index, correct_indices)
 
-                pred_indices.append(chosen_index2)
-                pred_strings.append(self.all_actions[int(pred_indices[-1])])
-                self.add_loss(loss2)
-                self.add_accuracy(accuracy2)
+                    pred_indices.append(chosen_index2)
+                    pred_strings.append(
+                        self.all_actions[int(pred_indices[-1])])
+                    # self.add_loss(loss2)
+                    # self.add_accuracy(accuracy2)
+                    frame_accuracies.append(accuracy2)
+                    frame_losses.append(loss2)
 
+                self.add_loss(sum(frame_losses) / len(frame_losses))
+                self.add_accuracy(sum(frame_accuracies) /
+                                  len(frame_accuracies))
                 avg_loss, avg_acc = self.get_avg_loss_acc()
-
-                if avg_acc > 0 or accuracy2 == 1 or accuracy1 == 1:
-                    with open("it_works.txt", "w") as works:
-                        works.write("it did something")
+                epoch_accuracies.append(avg_acc)
+                epoch_losses.append(avg_loss)
                 print(
-                    f"{epoch}|{question}  ,  chosen preds:{pred_strings[-2]}, {pred_strings[-1]}, avg loss: {avg_loss}, avg_acc: {avg_acc}")
+                    f"{epoch}|{question},  chosen preds:{pred_strings[-2]}, {pred_strings[-1]}, avg loss: {avg_loss}, avg_acc: {avg_acc}")
+            with open('toy_data/verb_only/accuracy.txt', 'a+') as acc_file, open("toy_data/verb_only/loss.txt", "a+") as loss_file:
+                acc_file.write(
+                    f"{round(float(sum(epoch_accuracies) / len(epoch_accuracies)), 2)}\n")
+                loss_file.write(
+                    f"{round(float(sum(epoch_losses) / len(epoch_losses)), 2)}\n")
+            # accuracy_collection.append(
+            #     sum(epoch_accuracies) / len(epoch_accuracies))
+            # loss_collection.append(sum(epoch_losses) / len(epoch_losses))
+
+        with open("constrained_acc.txt", 'r') as acc_file, open("constrained_loss.txt", 'r') as loss_file:
+            accuracies = acc_file.read().splitlines()
+            losses = loss_file.read().splitlines()
+
+        accuracies = [round(float(acc), 2) for acc in accuracies]
+        losses = [round(float(lss), 2) for lss in losses]
+        plt.plot(accuracies)
+        plt.plot(losses)
+        plt.legend(['accuracy', 'loss'], loc='upper left')
+        plt.xlabel('epochs')
+        plt.title(self.experiment_name)
+        plt.savefig("plots/" + self.experiment_name + ".png")
+        plt.show()
 
     def get_answer_letter(self, answer_index):
         switcher = {
@@ -293,7 +307,13 @@ class DQNTrainer(object):
         if len(row['fact1_pred']) == 0 and len(row['fact2_pred']) == 0:
             self.erroneous_facts.add(json.dumps(row))
             return 0
-        actions = []
-        actions += row['fact1_pred']
-        actions += row['fact2_pred']
-        return actions
+        combined_actions = list()
+        actions1 = list()
+        for pred in row['fact1_pred']:
+            actions1.append(self.pred2index[pred])
+        actions2 = list()
+        for pred in row['fact2_pred']:
+            actions2.append(self.pred2index[pred])
+        combined_actions.append(actions1)
+        combined_actions.append(actions2)
+        return combined_actions
