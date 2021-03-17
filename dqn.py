@@ -139,10 +139,10 @@ class DQNTrainer(object):
         return open("toy_data/word_vocab.txt").read().splitlines()
 
     def load_action_dictionary(self):
-        return open("toy_data/constrained_predicates.txt").read().splitlines()
+        return open("toy_data/verb_only/constrained_predicate_list.txt").read().splitlines()
 
     def load_training_dataset(self):
-        return open("toy_data/constrained_training_data.txt").readlines()
+        return open("toy_data/verb_only/constrained_training_data.txt").readlines()
 
     def preprocess(self, text):
         lemma = WordNetLemmatizer()
@@ -186,6 +186,7 @@ class DQNTrainer(object):
         total_frames = 0
         # accuracy_collection = []
         # loss_collection = []
+        self.model.train()
         with open('toy_data/verb_only/accuracy.txt', 'w') as acc_file, open("toy_data/verb_only/loss.txt", "w") as loss_file:
             print("emptied previous file")
         for epoch in range(1, self.num_epochs + 1):
@@ -256,19 +257,20 @@ class DQNTrainer(object):
             #     sum(epoch_accuracies) / len(epoch_accuracies))
             # loss_collection.append(sum(epoch_losses) / len(epoch_losses))
 
-        with open("constrained_acc.txt", 'r') as acc_file, open("constrained_loss.txt", 'r') as loss_file:
-            accuracies = acc_file.read().splitlines()
-            losses = loss_file.read().splitlines()
+        # with open("co.txt", 'r') as acc_file, open("constrained_loss.txt", 'r') as loss_file:
+        #     accuracies = acc_file.read().splitlines()
+        #     losses = loss_file.read().splitlines()
 
-        accuracies = [round(float(acc), 2) for acc in accuracies]
-        losses = [round(float(lss), 2) for lss in losses]
-        plt.plot(accuracies)
-        plt.plot(losses)
-        plt.legend(['accuracy', 'loss'], loc='upper left')
-        plt.xlabel('epochs')
-        plt.title(self.experiment_name)
-        plt.savefig("plots/" + self.experiment_name + ".png")
-        plt.show()
+        torch.save(self.model.state_dict(), f'constrained_verb_only.pt')
+        # accuracies = [round(float(acc), 2) for acc in accuracies]
+        # losses = [round(float(lss), 2) for lss in losses]
+        # plt.plot(accuracies)
+        # plt.plot(losses)
+        # plt.legend(['accuracy', 'loss'], loc='upper left')
+        # plt.xlabel('epochs')
+        # plt.title(self.experiment_name)
+        # plt.savefig("plots/" + self.experiment_name + ".png")
+        # plt.show()
 
     def get_answer_letter(self, answer_index):
         switcher = {

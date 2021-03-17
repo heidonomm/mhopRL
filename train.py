@@ -1,4 +1,4 @@
-from basic_dqn import DQNTrainer
+from dqn import DQNTrainer
 from joblib import Parallel, delayed
 import multiprocessing
 import gc
