@@ -14,7 +14,6 @@ class DQNAnalyser(DQNTrainer):
 
         self.model.load_state_dict(torch.load('constrained_verb_only.pt'))
 
-        # self.action_freq_dist = self.get_action_freq_distribution()
         self.action_predicted_correctly = defaultdict(int)
         self.action_predicted_falsely = defaultdict(int)
 
@@ -52,21 +51,6 @@ class DQNAnalyser(DQNTrainer):
                     correct_indices.pop(i)
 
             return chosen_index, reward, correct_indices
-
-    def get_action_freq_distribution(self):
-        pred_counter = defaultdict(int)
-        for i in range(len(self.training_dataset)):
-            row = json.loads(self.training_dataset[i])
-            if 'fact1_pred' in row:
-                for pred in row['fact1_pred']:
-                    pred_counter[pred] += 1
-            if 'fact2_pred' in row:
-                for pred in row['fact2_pred']:
-                    pred_counter[pred] += 1
-
-        reversed_pred_counter = {count: pred for (
-            pred, count) in pred_counter.items()}
-        return reversed_pred_counter
 
     def evaluate(self):
         self.model.eval()

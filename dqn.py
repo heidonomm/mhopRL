@@ -1,35 +1,30 @@
 import math
 import random
-import textworld
-import numpy as np
 import json
+import logging
+from collections import deque, defaultdict
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.autograd as autograd
 import torch.nn.functional as F
-from torchnlp.nn import Attention
-
-
-from collections import deque
+import textworld
+import numpy as np
+import matplotlib.pyplot as plt
+import yaml
 from nltk.tokenize import word_tokenize
 from nltk import WordNetLemmatizer
 
-import matplotlib.pyplot as plt
-
-import logging
-
 from replay import *
 from schedule import *
-from utils import NegativeLogLoss, words_to_ids, to_one_hot
+from utils import words_to_ids, to_one_hot
 
 
 USE_CUDA = torch.cuda.is_available()
 
 
 class DQN(nn.Module):
-    def __init__(self, num_inputs, num_actions):
+    def __init__(self, num_inputs, num_actions, hidden_size):
         super(DQN, self).__init__()
         print(f"is cuda available: {USE_CUDA}")
 
@@ -37,15 +32,15 @@ class DQN(nn.Module):
         self.num_actions = num_actions
 
         self.embeddings = nn.Embedding(self.num_inputs, 16)
-        self.encoder = nn.LSTM(16, 8, 2, batch_first=True)
+        self.encoder = nn.LSTM(16, hidden_size, 2, batch_first=True)
         self.relu = nn.ReLU()
 
-        self.aggregator = nn.LSTM(8, 8, batch_first=True)
-        self.predicate_pointer = nn.Linear(8, self.num_actions)
-        self.answer_pointer = nn.Linear(8, 8)
+        self.aggregator = nn.LSTM(hidden_size, hidden_size, batch_first=True)
+        self.predicate_pointer = nn.Linear(hidden_size, self.num_actions)
+        self.answer_pointer = nn.Linear(hidden_size, 8)
         self.softmax = nn.Softmax(dim=1)
 
-        self.loss_f = nn.BCEWithLogitsLoss()
+        self.loss_f = nn.SmoothL1Loss()
 
     def get_encoding(self, x):
         # embs = torch.reshape(
@@ -84,21 +79,30 @@ class DQN(nn.Module):
 
 class DQNTrainer(object):
     def __init__(self):
-        self.num_epochs = 30
+        with open('config.yaml') as cf:
+            self.config = yaml.safe_load(cf)
 
         self.vocab = self.load_vocab()
-        self.word2index = self.load_word2index()
         self.all_actions = self.load_action_dictionary()
         self.training_dataset = self.load_training_dataset()
-        self.pred2index = self.load_action2index()
-        self.experiment_name = f'Multiword Predicate, Samples:{len(self.training_dataset)}, Actions:{len(self.all_actions)}, Epochs: {self.num_epochs}'
+
+        self.word2index = self.load_word2index()
+        self.action2index = self.load_action2index()
+        self.action2freq = self.load_action2freq()
+
+        self.num_epochs = self.config['general']['max_epoch']
+        self.num_episodes = self.config['general']['max_episode']
+        self.hidden_size = self.config['general']['hidden_size']
+        self.gamma = self.config['general']['gamma']
+
+        self.action_threshold = self.config['general']['action_threshold']
+        self.imbalance_ratio = self.get_imbalance_ratio()
+
+        self.experiment_name = f'Constrained Verb, custom reward, Samples:{len(self.training_dataset)}, Actions:{len(self.all_actions)}, Epochs: {self.num_epochs}'
 
         self.model = DQN(len(self.vocab), len(
-            self.all_actions))
-
+            self.all_actions), self.hidden_size)
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.1)
-
-        self.erroneous_facts = set()
 
         self.queue_size = 50
         self.loss_queue = []
@@ -122,6 +126,16 @@ class DQNTrainer(object):
         avg_loss = sum(self.loss_queue) / len(self.loss_queue)
         avg_acc = sum(self.accuracy_queue) / len(self.accuracy_queue)
         return avg_loss, avg_acc
+
+    def get_imbalance_ratio(self):
+        majority_count = 0
+        minority_count = 0
+        for key in self.action2freq.keys():
+            if self.action2freq[key] >= self.action_threshold:
+                majority_count += self.action2freq[key]
+            else:
+                minority_count += self.action2freq[key]
+        return minority_count / majority_count
 
     def load_action2index(self):
         action_dict = dict()
@@ -153,34 +167,51 @@ class DQNTrainer(object):
         tokens = [lemma.lemmatize(word.lower(), pos="n") for word in tokens]
         return " ".join(tokens)
 
-    def model_make_step(self, state_rep, data_index, correct_indices):
+    def get_proportional_reward(self, action_index):
+        if self.action2freq[action_index] < self.action_threshold:
+            return torch.FloatTensor(1)
+
+        return torch.FloatTensor(1 / self.action2freq[action_index])
+
+    def _get_next_q_value(self, state_rep, q_values):
+        chosen_index = torch.argmax(self.model.softmax(q_values), dim=1)
+        # action_verb_index = self.word2index[
+        #     self.action2index[chosen_index.item()]]
+        action_verb_index = self.word2index[
+            self.all_actions[chosen_index.item()]]
+        comb_state_rep = state_rep.copy()
+        comb_state_rep.append(action_verb_index)
+        with torch.no_grad():
+            statept = torch.LongTensor(comb_state_rep)
+            state_embeds = self.model.get_embeds(statept)
+            x = self.model.get_encoding(state_embeds.unsqueeze(0))
+            q_values = self.model.predicate_pointer(x)
+        max_q = q_values[0][q_values.argmax(1)]
+        return max_q
+
+    def model_make_step(self, state_rep, data_index, correct_indices, final_step=False):
         statept = torch.LongTensor(state_rep)
         state_embeds = self.model.get_embeds(statept)
         x = self.model.get_encoding(state_embeds.unsqueeze(0))
         q_values = self.model.predicate_pointer(x)
+        max_q = q_values.squeeze()[torch.argmax(q_values, dim=1)]
+        next_max_q = self._get_next_q_value(state_rep, q_values)
 
-        one_hot_y_true = self.get_correct_one_hot_encoded_action_indices(
-            json.loads(self.training_dataset[data_index]))
+        pure_reward = -1
+        chosen_index = torch.argmax(self.model.softmax(q_values), dim=1)
+        for i, fact_idxs in enumerate(correct_indices):
+            if chosen_index.item() in fact_idxs:
+                reward = self.get_proportional_reward(chosen_index)
+                correct_indices.pop(i)
 
-        if one_hot_y_true is None:
-            return 0
-        if len(one_hot_y_true) == 0:
-            return 0
+        reward = pure_reward + self.gamma * next_max_q * (1 - final_step)
 
-        loss = self.model.loss_f(q_values, one_hot_y_true)
+        loss = self.model.loss_f(max_q, reward)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
 
-        chosen_index = torch.argmax(self.model.softmax(q_values), dim=1)
-
-        reward = 0
-        for i, fact_idxs in enumerate(correct_indices):
-            if chosen_index.item() in fact_idxs:
-                reward = 1
-                correct_indices.pop(i)
-
-        return chosen_index, (loss, reward), correct_indices
+        return chosen_index, (loss, pure_reward), correct_indices
 
     def train_QA(self):
         total_frames = 0
@@ -195,7 +226,7 @@ class DQNTrainer(object):
             for data_index in range(len(self.training_dataset)):
                 frame_accuracies = list()
                 frame_losses = list()
-                for frame_idx in range(5):
+                for episode_idx in range(self.num_episodes):
                     row = json.loads(self.training_dataset[data_index])
                     question = row['question']
                     choices = row['choices']
@@ -230,7 +261,7 @@ class DQNTrainer(object):
                     state_reps.append(state_rep2)
 
                     chosen_index2, (loss2, accuracy2), correct_indices = self.model_make_step(
-                        state_rep2, data_index, correct_indices)
+                        state_rep2, data_index, correct_indices, final_step=True)
 
                     pred_indices.append(chosen_index2)
                     pred_strings.append(
@@ -256,10 +287,6 @@ class DQNTrainer(object):
             # accuracy_collection.append(
             #     sum(epoch_accuracies) / len(epoch_accuracies))
             # loss_collection.append(sum(epoch_losses) / len(epoch_losses))
-
-        # with open("co.txt", 'r') as acc_file, open("constrained_loss.txt", 'r') as loss_file:
-        #     accuracies = acc_file.read().splitlines()
-        #     losses = loss_file.read().splitlines()
 
         torch.save(self.model.state_dict(), f'constrained_verb_only.pt')
         # accuracies = [round(float(acc), 2) for acc in accuracies]
@@ -299,7 +326,7 @@ class DQNTrainer(object):
         correct_action_indices = list()
         zeros = torch.zeros(1, len(self.all_actions), dtype=torch.float)
         for action in correct_actions:
-            zeros[0][self.pred2index[action]] = 1
+            zeros[0][self.action2index[action]] = 1
         return zeros
 
     def get_action_indices(self, row):
@@ -307,15 +334,27 @@ class DQNTrainer(object):
         @return: a 2d array, first index specifies fact, second specifies the associated predicates
         """
         if len(row['fact1_pred']) == 0 and len(row['fact2_pred']) == 0:
-            self.erroneous_facts.add(json.dumps(row))
             return 0
         combined_actions = list()
         actions1 = list()
         for pred in row['fact1_pred']:
-            actions1.append(self.pred2index[pred])
+            actions1.append(self.action2index[pred])
         actions2 = list()
         for pred in row['fact2_pred']:
-            actions2.append(self.pred2index[pred])
+            actions2.append(self.action2index[pred])
         combined_actions.append(actions1)
         combined_actions.append(actions2)
         return combined_actions
+
+    def load_action2freq(self):
+        pred_counter = defaultdict(int)
+        for i in range(len(self.training_dataset)):
+            row = json.loads(self.training_dataset[i])
+            if 'fact1_pred' in row:
+                for pred in row['fact1_pred']:
+                    pred_counter[pred] += 1
+            if 'fact2_pred' in row:
+                for pred in row['fact2_pred']:
+                    pred_counter[pred] += 1
+
+        return pred_counter
