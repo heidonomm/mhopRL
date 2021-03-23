@@ -88,7 +88,7 @@ class DQNTrainer(object):
 
         self.word2index = self.load_word2index()
         self.action2index = self.load_action2index()
-        self.action2freq = self.load_action2freq()
+        self.action_idx2freq = self.load_action2freq()
 
         self.num_epochs = self.config['general']['max_epoch']
         self.num_episodes = self.config['general']['max_episode']
@@ -102,7 +102,10 @@ class DQNTrainer(object):
 
         self.model = DQN(len(self.vocab), len(
             self.all_actions), self.hidden_size)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=0.1)
+        self.optimizer = optim.Adam(
+            self.model.parameters(), self.config['optimizer']['learning_rate'])
+        self.epsilon_scheduler = ExponentialSchedule(
+            self.num_epochs * self.num_episodes, self.config['epsilon']['decay_rate'], self.config['epsilon']['final_value'])
 
         self.queue_size = 50
         self.loss_queue = []
@@ -130,11 +133,13 @@ class DQNTrainer(object):
     def get_imbalance_ratio(self):
         majority_count = 0
         minority_count = 0
-        for key in self.action2freq.keys():
-            if self.action2freq[key] >= self.action_threshold:
-                majority_count += self.action2freq[key]
+        for key in self.action_idx2freq.keys():
+            if self.action_idx2freq[key] >= self.action_threshold:
+                minority_count += self.action_idx2freq[key]
             else:
-                minority_count += self.action2freq[key]
+                majority_count += self.action_idx2freq[key]
+        print(
+            f"majority count is: {majority_count}, minority: {minority_count}")
         return minority_count / majority_count
 
     def load_action2index(self):
@@ -168,10 +173,16 @@ class DQNTrainer(object):
         return " ".join(tokens)
 
     def get_proportional_reward(self, action_index):
-        if self.action2freq[action_index] < self.action_threshold:
-            return torch.FloatTensor(1)
+        if self.action_idx2freq[action_index] < self.action_threshold:
+            return 1
+        else:
+            return 1 / self.imbalance_ratio
+        # print(action_index)
+        # return 1 / self.action_idx2freq[action_index]
+        # if self.action_idx2freq[action_index] < self.action_threshold:
+        #     return torch.FloatTensor(1)
 
-        return torch.FloatTensor(1 / self.action2freq[action_index])
+        # return torch.FloatTensor(1 / self.action_idx2freq[action_index])
 
     def _get_next_q_value(self, state_rep, q_values):
         chosen_index = torch.argmax(self.model.softmax(q_values), dim=1)
@@ -189,22 +200,37 @@ class DQNTrainer(object):
         max_q = q_values[0][q_values.argmax(1)]
         return max_q
 
-    def model_make_step(self, state_rep, data_index, correct_indices, final_step=False):
+    def model_make_step(self, state_rep, data_index, correct_indices, epsilon, final_step=False):
         statept = torch.LongTensor(state_rep)
         state_embeds = self.model.get_embeds(statept)
         x = self.model.get_encoding(state_embeds.unsqueeze(0))
         q_values = self.model.predicate_pointer(x)
-        max_q = q_values.squeeze()[torch.argmax(q_values, dim=1)]
         next_max_q = self._get_next_q_value(state_rep, q_values)
 
-        pure_reward = -1
-        chosen_index = torch.argmax(self.model.softmax(q_values), dim=1)
+        if random.random() < epsilon:
+            chosen_index = random.randrange(0, len(self.all_actions) - 1)
+        else:
+            chosen_index = torch.argmax(
+                self.model.softmax(q_values), dim=1).item()
+        max_q = q_values.squeeze()[chosen_index]
+
+        if self.action_idx2freq[chosen_index] > self.action_threshold:
+            reward = -1 / self.imbalance_ratio
+        else:
+            reward = -1
         for i, fact_idxs in enumerate(correct_indices):
-            if chosen_index.item() in fact_idxs:
+            if chosen_index in fact_idxs:
                 reward = self.get_proportional_reward(chosen_index)
                 correct_indices.pop(i)
+                break
 
-        reward = pure_reward + self.gamma * next_max_q * (1 - final_step)
+        # for Logging purposes
+        if reward > 0:
+            pure_reward = 1
+        else:
+            pure_reward = -1
+
+        reward = reward + self.gamma * next_max_q * (1 - final_step)
 
         loss = self.model.loss_f(max_q, reward)
         self.optimizer.zero_grad()
@@ -220,6 +246,7 @@ class DQNTrainer(object):
         self.model.train()
         with open('toy_data/verb_only/accuracy.txt', 'w') as acc_file, open("toy_data/verb_only/loss.txt", "w") as loss_file:
             print("emptied previous file")
+        episodes_so_far = 1
         for epoch in range(1, self.num_epochs + 1):
             epoch_accuracies = list()
             epoch_losses = list()
@@ -231,6 +258,7 @@ class DQNTrainer(object):
                     question = row['question']
                     choices = row['choices']
                     correct_indices = self.get_action_indices(row)
+                    epsilon = self.epsilon_scheduler.value(episodes_so_far)
 
                     pred_indices = list()
                     pred_strings = list()
@@ -244,7 +272,7 @@ class DQNTrainer(object):
                     state_reps.append(state_rep1)
 
                     chosen_index1, (loss1, accuracy1), correct_indices = self.model_make_step(
-                        state_rep1, data_index, correct_indices)
+                        state_rep1, data_index, correct_indices, epsilon, final_step=False)
 
                     pred_indices.append(chosen_index1)
                     pred_strings.append(self.all_actions[pred_indices[-1]])
@@ -261,7 +289,7 @@ class DQNTrainer(object):
                     state_reps.append(state_rep2)
 
                     chosen_index2, (loss2, accuracy2), correct_indices = self.model_make_step(
-                        state_rep2, data_index, correct_indices, final_step=True)
+                        state_rep2, data_index, correct_indices, epsilon, final_step=True)
 
                     pred_indices.append(chosen_index2)
                     pred_strings.append(
@@ -277,8 +305,9 @@ class DQNTrainer(object):
                 avg_loss, avg_acc = self.get_avg_loss_acc()
                 epoch_accuracies.append(avg_acc)
                 epoch_losses.append(avg_loss)
+                episodes_so_far += 1
                 print(
-                    f"{epoch}|{question},  chosen preds:{pred_strings[-2]}, {pred_strings[-1]}, avg loss: {avg_loss}, avg_acc: {avg_acc}")
+                    f"{epoch}|{question},  chosen preds:{pred_strings[-2]}, {pred_strings[-1]}, epsilon {epsilon}, avg loss: {avg_loss}, avg_acc: {avg_acc}")
             with open('toy_data/verb_only/accuracy.txt', 'a+') as acc_file, open("toy_data/verb_only/loss.txt", "a+") as loss_file:
                 acc_file.write(
                     f"{round(float(sum(epoch_accuracies) / len(epoch_accuracies)), 2)}\n")
@@ -357,4 +386,9 @@ class DQNTrainer(object):
                 for pred in row['fact2_pred']:
                     pred_counter[pred] += 1
 
-        return pred_counter
+        idx2freq = dict()
+        for pred in pred_counter.keys():
+            key = self.action2index[pred]
+            idx2freq[key] = pred_counter[pred]
+
+        return idx2freq
