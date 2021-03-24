@@ -5,7 +5,7 @@ import nltk
 import torch
 
 from utils import words_to_ids
-from dqn import DQNTrainer
+from DQNTrainer import DQNTrainer
 
 
 class DQNAnalyser(DQNTrainer):
