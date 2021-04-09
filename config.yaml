@@ -1,14 +1,18 @@
 general:
-  batch_size: 1
-  max_episode: 5 # How many times each question is looped over in one epoch
+  batch_size: 10
+  max_episode: 2 # How many times each question is looped over in one epoch
   max_epoch: 50 # how many times training data is looped over
-  gamma: 0.2 # discount rate (for future action estimates)
+  gamma: 0.8 # discount rate (for future action estimates)
   hidden_size: 8
   action_threshold: 100 # number of counts of which above is a dominant class; selected based on pred distributions
+  update_freq: 10
 
 optimizer:
   learning_rate: 0.1
 
 epsilon:
   decay_rate: 500
-  final_value: 0.05
+  final_value: 0.02
+
+replay:
+  buffer_size: 100

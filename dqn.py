@@ -17,13 +17,23 @@ class DQN(nn.Module):
         self.num_actions = num_actions
 
         self.embeddings = SentenceTransformer('nq-distilbert-base-v1')
-        self.encoder = nn.LSTM(768, hidden_size, 2, batch_first=True)
-        self.relu = nn.ReLU()
+        # self.embeddings.weight.requires_grad = False
+        for param in self.embeddings.parameters():
+            param.requires_grad = False
+        self.embedding_size = 768
+        self.net = nn.Sequential(
+            nn.Linear(self.embedding_size, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, self.num_actions)
+        )
+        # self.encoder = nn.LSTM(768, hidden_size, 2, batch_first=True)
 
-        self.aggregator = nn.LSTM(hidden_size, hidden_size, batch_first=True)
-        self.predicate_pointer = nn.Linear(hidden_size, self.num_actions)
-        self.answer_pointer = nn.Linear(hidden_size, 8)
+        # self.predicate_pointer = nn.Linear(hidden_size, self.num_actions)
+        # self.answer_pointer = nn.Linear(hidden_size, 8)
         self.softmax = nn.Softmax(dim=1)
+        self.relu = nn.ReLU()
 
         self.loss_f = nn.SmoothL1Loss()
 

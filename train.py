@@ -5,4 +5,4 @@ import gc
 
 if __name__ == "__main__":
     trainer = DQNTrainer()
-    trainer.train_QA()
+    trainer.train()

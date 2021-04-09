@@ -12,7 +12,7 @@ class DQNAnalyser(DQNTrainer):
     def __init__(self):
         super().__init__()
 
-        self.model.load_state_dict(torch.load('constrained_verb_only.pt'))
+        self.model.load_state_dict(torch.load('verb_custom_gamma.pt'))
 
         self.action_predicted_correctly = defaultdict(int)
         self.action_predicted_falsely = defaultdict(int)
@@ -64,51 +64,51 @@ class DQNAnalyser(DQNTrainer):
             pred_strings = list()
             state_reps = list()
 
-            """
-                Step 1
-            """
-            state_rep1 = words_to_ids(self.preprocess(
-                row['formatted_question']), self.word2index)
-            state_reps.append(state_rep1)
+            with torch.no_grad():
+                """
+                    Step 1
+                """
+                state_rep1 = row['formatted_question']
+                state_reps.append(state_rep1)
 
-            chosen_index1, reward1, correct_indices = self.model_make_step(
-                state_rep1, data_index, correct_indices)
+                chosen_index1, reward1, correct_indices = self.model_step(
+                    state_rep1, correct_indices, epsilon=0, final_step=False)
 
-            pred_indices.append(chosen_index1)
-            pred_strings.append(self.all_actions[chosen_index1])
-            if reward1 == 1:
-                self.action_predicted_correctly[pred_strings[-1]] += 1
-            else:
-                self.action_predicted_falsely[pred_strings[-1]] += 1
+                pred_indices.append(chosen_index1)
+                pred_strings.append(self.all_actions[chosen_index1])
 
-            """
-                Step 2
-            """
-            state_rep2 = state_rep1 + \
-                words_to_ids(f" {pred_strings[-1]}", self.word2index)
-            state_reps.append(state_rep2)
+                if reward1 > 0:
+                    self.action_predicted_correctly[pred_strings[-1]] += 1
+                else:
+                    self.action_predicted_falsely[pred_strings[-1]] += 1
 
-            chosen_index2, reward2, correct_indices = self.model_make_step(
-                state_rep2, data_index, correct_indices)
+                """
+                    Step 2
+                """
+                state_rep2 = state_rep1 + f" {pred_strings[-1]}"
+                state_reps.append(state_rep2)
 
-            pred_indices.append(chosen_index2)
-            pred_strings.append(
-                self.all_actions[int(pred_indices[-1])])
+                chosen_index2, reward2, correct_indices = self.model_step(
+                    state_rep2, correct_indices, epsilon=0, final_step=True)
 
-            if reward2 == 1:
-                self.action_predicted_correctly[pred_strings[-1]] += 1
-            else:
-                self.action_predicted_falsely[pred_strings[-1]] += 1
+                pred_indices.append(chosen_index2)
+                pred_strings.append(
+                    self.all_actions[int(pred_indices[-1])])
 
-            if reward1 == 1 and reward2 == 1:
-                self.questions_predicted_correctly[question] = (
-                    pred_strings[-2], pred_strings[-1])
-            if reward1 == 0 and reward2 == 0:
-                self.questions_predicted_falsely[question] = (
-                    pred_strings[-2], pred_strings[-1])
-            if pred_strings[-2] != pred_strings[-1]:
-                self.questions_where_predictions_are_different[question] = (
-                    pred_strings[-2], pred_strings[-1])
+                if reward2 == 1:
+                    self.action_predicted_correctly[pred_strings[-1]] += 1
+                else:
+                    self.action_predicted_falsely[pred_strings[-1]] += 1
+
+                if reward1 == 1 and reward2 == 1:
+                    self.questions_predicted_correctly[question] = (
+                        pred_strings[-2], pred_strings[-1])
+                if reward1 <= 0 and reward2 <= 0:
+                    self.questions_predicted_falsely[question] = (
+                        pred_strings[-2], pred_strings[-1])
+                if pred_strings[-2] != pred_strings[-1]:
+                    self.questions_where_predictions_are_different[question] = (
+                        pred_strings[-2], pred_strings[-1])
 
         print(len(self.training_dataset))
         self.write_analysis_files()
