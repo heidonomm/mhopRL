@@ -1,3 +1,7 @@
+"""
+Original ReplayBuffer taken as reference from https://github.com/rajammanabrolu/KG-DQN
+"""
+
 from collections import deque, namedtuple
 import numpy as np
 import random
